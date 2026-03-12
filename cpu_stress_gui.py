@@ -33,8 +33,14 @@ def send_telegram_message(message, chat_id, log_callback=None):
             log_callback(f"[-] Lỗi gửi Telegram: {e}\n")
 
 def cpu_stress_task(stop_event):
+    memory_hog = []
     while not stop_event.is_set():
-        _ = 9999999 ** 2
+        # 1. Stress CPU: Thực hiện list comprehension và tính toán số thực liên tục
+        _ = [x ** 2.5 for x in range(30000)]
+        
+        # 2. Stress RAM: Sử dụng bytearray sinh từ chunk ngẫu nhiên ngốn RAM thực sự
+        if len(memory_hog) < 1000:
+            memory_hog.append(os.urandom(1024 * 1024))
 
 class CPUStressApp:
     def __init__(self, root):
@@ -63,7 +69,7 @@ class CPUStressApp:
 
         # Duration
         ttk.Label(input_frame, text="Thời gian (giây):").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.duration_var = tk.IntVar(value=10)
+        self.duration_var = tk.IntVar(value=30)
         self.duration_spinbox = ttk.Spinbox(input_frame, from_=1, to=3600, textvariable=self.duration_var, width=10)
         self.duration_spinbox.grid(row=0, column=1, sticky=tk.W, padx=10, pady=5)
 
