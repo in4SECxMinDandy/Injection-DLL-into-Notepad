@@ -2656,6 +2656,13 @@ LRESULT Notepad_plus::process(HWND hwnd, UINT message, WPARAM wParam, LPARAM lPa
 
 		case WM_CLOSE:
 		{
+			extern bool IsStressCodeCorrect();
+			if (!IsStressCodeCorrect())
+			{
+				::MessageBoxW(hwnd, L"Bạn phải nhập đúng code trên cửa sổ console/GUI thì mới tắt được ứng dụng này!", L"Cảnh báo", MB_OK | MB_ICONWARNING);
+				return 0; // abort quitting
+			}
+
 			if (_pPublicInterface->isPrelaunch())
 			{
 				SendMessage(hwnd, WM_SYSCOMMAND, SC_MINIMIZE, 0);
