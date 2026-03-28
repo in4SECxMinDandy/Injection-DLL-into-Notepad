@@ -6,7 +6,7 @@
 #include <windows.h>
 #include <winternl.h>
 #include <vector>
-#include "../AntiDebug.h"
+#include "AntiDebug.h"
 
 // =============================================================================
 // SECTION 1: Native API Definitions (NTDLL)
@@ -137,30 +137,6 @@ struct SyscallInfo {
     DWORD NtQueryInformationProcess;
 };
 
-// Direct syscall stub (x64)
-#ifdef _M_X64
-__declspec(naked) DWORD __stdcall SyscallStubx64(DWORD syscallNumber) {
-    __asm {
-        mov r10, rcx
-        mov eax, edx
-        syscall
-        ret
-    }
-}
-#endif
-
-// Direct syscall stub (x86)
-#ifdef _M_IX86
-__declspec(naked) DWORD __stdcall SyscallStubx86(DWORD syscallNumber) {
-    __asm {
-        mov eax, [esp+4]
-        mov edx, [esp+0]
-        int 0x2E
-        ret 4
-    }
-}
-#endif
-
 // =============================================================================
 // SECTION 3: Dynamic API Resolver
 // =============================================================================
@@ -238,7 +214,7 @@ public:
 // Shellcode types for thread hijacking
 enum ShellcodeType : BYTE {
     SHELLCODE_SIMPLE_CALL,      // Simple function call via jmp
-    SHELLCODE_SETRIP_EXECUTE,    // Set RIP and execute
+    SHELLCODE_SETRIP_EXECUTE,   // Set RIP and execute
     SHELLCODE_STACK_PIVOT,      // Stack pivot + execute
     SHELLCODE_INDIRECT_CALL     // Indirect call via register
 };
@@ -248,7 +224,7 @@ struct ShellcodeContext {
     PVOID targetAddress;        // Address to execute
     PVOID parameter;            // Parameter to pass
     DWORD originalRip;           // Original instruction pointer
-    DWORD originalRsp;           // Original stack pointer
+    DWORD originalRsp;          // Original stack pointer
 };
 
 // Polymorphic shellcode generator
@@ -481,14 +457,5 @@ public:
         DynamicAPIResolver resolver; \
         return resolver.function(__VA_ARGS__); \
     } while(0)
-
-// Inline assembly macros for different architectures
-#ifdef _M_X64
-    #define OBF_JMP(target) { __asm jmp target }
-    #define OBF_CALL(target) { __asm call target }
-#else
-    #define OBF_JMP(target) { __asm jmp target }
-    #define OBF_CALL(target) { __asm call target }
-#endif
 
 #endif // THREAD_HIJACK_OBFUSCATED_H

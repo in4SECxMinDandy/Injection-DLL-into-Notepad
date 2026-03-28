@@ -6,6 +6,8 @@
 #include <windows.h>
 #include <winternl.h>
 #include <intrin.h>
+#include <tlhelp32.h>
+#include <psapi.h>
 
 namespace AntiDebug {
 
@@ -30,6 +32,8 @@ inline bool IsDebuggerPresentPEB() {
 #elif defined(_M_IX86)
     PEB* peb = (PEB*)__readfsdword(0x30);
     return peb->BeingDebugged != 0;
+#else
+    return false;
 #endif
 }
 
@@ -75,19 +79,18 @@ inline bool CheckRDTSCDetection() {
     int detected = 0;
     
     for (int i = 0; i < 4; i++) {
-        unsigned int start1 = __rdtsc();
-        unsigned int start2 = __rdtsc();
+        // Use unsigned __int64 to avoid truncation
+        unsigned __int64 start = __rdtsc();
         
         // Small delay
         for (volatile int j = 0; j < 100; j++) {
-            __asm__ __volatile__("nop");
+            YieldProcessor();
         }
         
-        unsigned int end1 = __rdtsc();
-        unsigned int end2 = __rdtsc();
+        unsigned __int64 end = __rdtsc();
         
         // If there's an abnormal gap, debugger might be present
-        if ((end2 - start1) > 1000000) {
+        if ((end - start) > 1000000ULL) {
             detected++;
         }
     }
@@ -132,20 +135,30 @@ inline bool CheckPerformanceCounter() {
 // SECTION 3: Exception-Based Detection
 // =============================================================================
 
-// INT 2D (kernel debugger check)
+// INT 2D (kernel debugger check) - use structured exception handling
 inline bool CheckInt2D() {
+#if defined(_M_IX86)
     __try {
-        __asm {
-            int 0x2D
-            // If we get here, no kernel debugger
-            xor eax, eax
-            mov eax, 1
-        }
+        // Use intrinsic or inline assembly alternative
+        // INT 2D on x86 causes exception in user mode, no exception in kernel debug
+        #if defined(_MSC_VER)
+        // MSVC x86 can use __asm
+        __asm int 0x2D
+        #else
+        // GCC inline asm
+        __asm__ volatile ("int $0x2D");
+        #endif
+        
         return false; // No debugger
     }
     __except(EXCEPTION_EXECUTE_HANDLER) {
         return true; // Debugger detected
     }
+#else
+    // On x64, we can't use INT 2D directly
+    // Use alternative timing-based detection
+    return CheckRDTSCDetection();
+#endif
 }
 
 // INT 3 detection
@@ -171,7 +184,7 @@ inline bool CheckSoftwareBreakpoints() {
 // CloseHandle detection
 inline bool CheckCloseHandleException() {
     __try {
-        HANDLE hFake = (HANDLE)0xDEADBEEF;
+        HANDLE hFake = (HANDLE)(ULONG_PTR)0xDEADBEEF;
         CloseHandle(hFake);
         return false; // No exception = debugger
     }
@@ -262,16 +275,22 @@ inline bool IsParentProcessDebugger() {
     
     CloseHandle(hParent);
     
-    // Check for common debuggers
-    WCHAR* debuggers[] = {
+    // Check for common debuggers - use const WCHAR* array
+    static const WCHAR* const debuggers[] = {
         L"ollydbg.exe", L"x64dbg.exe", L"x32dbg.exe",
         L"windbg.exe", L"ida.exe", L"idal.exe",
         L"ida64.exe", L"devenv.exe", L"processhacker.exe",
         L"x96dbg.exe", L"dnSpy.exe", L"ilspy.exe"
     };
     
-    for (int i = 0; i < sizeof(debuggers) / sizeof(debuggers[0]); i++) {
-        if (wcsstr(_wcslwr(parentName), debuggers[i])) {
+    // Convert to lowercase for comparison
+    WCHAR lowerName[MAX_PATH] = {};
+    for (size_t i = 0; i < wcslen(parentName) && i < MAX_PATH - 1; i++) {
+        lowerName[i] = (WCHAR)tolower(parentName[i]);
+    }
+    
+    for (size_t i = 0; i < sizeof(debuggers) / sizeof(debuggers[0]); i++) {
+        if (wcsstr(lowerName, debuggers[i]) != nullptr) {
             return true;
         }
     }
@@ -314,13 +333,14 @@ inline bool HasVMArtifacts() {
     BYTE brand[49] = {};
     GetCPUBrand(brand);
     
-    char* vm_signatures[] = {
+    // Use const char* array
+    static const char* const vm_signatures[] = {
         "VMware", "VirtualBox", "QEMU", "Hyper-V",
         "Parallels", "Xen", "KVM"
     };
     
-    for (int i = 0; i < sizeof(vm_signatures) / sizeof(vm_signatures[0]); i++) {
-        if (strstr((char*)brand, vm_signatures[i])) {
+    for (size_t i = 0; i < sizeof(vm_signatures) / sizeof(vm_signatures[0]); i++) {
+        if (strstr((char*)brand, vm_signatures[i]) != nullptr) {
             return true;
         }
     }

