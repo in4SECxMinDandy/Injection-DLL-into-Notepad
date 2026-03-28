@@ -1,5 +1,4 @@
-
-## Supported OS Table
+# Supported OS Table
 
 * The column **OS** is the list of different MS Windows generations.
 * The column **last version can be run** is for the status of the latest release to be run under the OS. If the current (latest) version can be run under the specific OS, then the `current version`  will be indicated instead of version number.
@@ -24,4 +23,4 @@
 
 \* The current version of Notepad++ built by GCC can be run under Vista & Server 2008
 
-*Note that the list is meant for the last SP of each version*
+Note that the list is meant for the last SP of each version

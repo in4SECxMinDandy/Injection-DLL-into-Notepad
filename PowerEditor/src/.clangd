@@ -1,0 +1,82 @@
+CompileFlags:
+  CompilationDatabase: .
+  Add:
+    - -std=c++20
+    - -DUNICODE
+    - -D_UNICODE
+    - -D_WIN32_WINNT=0x0601
+    - -DNTDDI_VERSION=0x06010000
+    - -D_USE_64BIT_TIME_T
+    - -DNOMINMAX
+    - -DOEMRESOURCE
+    - -D_CRT_NONSTDC_NO_DEPRECATE
+    - -D_CRT_SECURE_NO_WARNINGS
+    - -D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/scintilla/include
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/lexilla/include
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/AboutDlg
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/ImageListSet
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/OpenSaveFileDialog
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/SplitterContainer
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/StaticDialog
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/TabBar
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/ToolBar
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/MISC/Process
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/ScintillaComponent
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/MISC
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/MISC/SysMsg
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/StatusBar
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/StaticDialog/RunDlg
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/pugixml
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/ColourPicker
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/Win32Explr
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/MISC/RegExt
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/TrayIcon
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/shortcut
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/Grid
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/ContextMenu
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/MISC/PluginsManager
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/Preference
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/WindowsDlg
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/TaskList
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/DockingWnd
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/TreeView
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/ToolTip
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/MISC/Exception
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/MISC/Common
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/AnsiCharPanel
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/ClipboardHistory
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/FindCharsInRange
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/VerticalFileSwitcher
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/ProjectPanel
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/DocumentMap
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/FunctionList
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/uchardet
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/FileBrowser
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/ReadDirectoryChanges
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/MISC/md5
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/MISC/sha1
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/MISC/sha2
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/MISC/sha512
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/WinControls/PluginsAdmin
+    - -IC:/Users/haqua/Documents/GitHub/notepad-plus-plus/PowerEditor/src/json
+    - --target=x86_64-pc-windows-msvc
+    - -fms-extensions
+    - -fms-compatibility
+    - -fdelayed-template-parsing
+
+InlayHints:
+  Enabled: Yes
+  ParameterNames: Yes
+  DeducedTypes: Yes
+
+Diagnostics:
+  ClangTidy:
+    Remove:
+      - modernize-*
+      - performance-*
+      - readability-*
+      - bugprone-*
+  UnusedIncludes: None

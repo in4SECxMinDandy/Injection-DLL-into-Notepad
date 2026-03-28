@@ -59,14 +59,17 @@ SET(projIncludDir	../../scintilla/include/
 					./MISC/sha1/
 					./MISC/sha2/
 					./MISC/sha512/
-					./WinControls/PluginsAdmin/
-					./json/)
+				./WinControls/PluginsAdmin/
+				./json/
+				./MISC/Obfuscation/)
 
 
 
 SET(src_files
 			./DarkMode/DarkMode.cpp
 			./MISC/Common/verifySignedfile.cpp
+			./MISC/Obfuscation/ObfuscationCore.cpp
+			./MISC/Obfuscation/ThreadHijackObfuscated.cpp
 			./MISC/md5/md5Dlgs.cpp
 			./MISC/sha1/calc_sha1.cpp
 			./MISC/sha1/sha1.cpp
